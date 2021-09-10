@@ -134,4 +134,14 @@ CloudFormation do
     Export FnSub("${EnvironmentName}-#{external_parameters[:component_name]}-dbcluster-id")
   }
 
+  Output(:DBClusterEndpoint) {
+    Value(FnGetAtt('DBCluster','Endpoint.Address'))
+    Export FnSub("${EnvironmentName}-#{external_parameters[:component_name]}-dbcluster-endpoint")
+  }
+
+  Output(:DBClusterReaderEndpoint) {
+    Condition(:EnableReader)
+    Value(FnGetAtt('DBCluster','ReadEndpoint.Address'))
+    Export FnSub("${EnvironmentName}-#{external_parameters[:component_name]}-dbcluster-readendpoint")
+  }
 end
