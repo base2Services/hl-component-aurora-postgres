@@ -220,11 +220,21 @@ CloudFormation do
   maint_window = external_parameters.fetch(:maint_window, nil) # key kept for backwards compatibility
   writer_maintenance_window = external_parameters.fetch(:writer_maintenance_window, maint_window)
 
+  Condition(:EnableEnhancedMonitoring, FnNot(FnEquals(Ref(:EnhancedMonitoringInterval), '0')))
+
+  IAM_Role(:EnhancedMonitoringRole) {
+    Condition(:EnableEnhancedMonitoring)
+    AssumeRolePolicyDocument service_assume_role_policy('monitoring.rds')
+    ManagedPolicyArns ['arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole']
+  }
+
   if engine_mode == 'serverless'
     RDS_DBInstance(:ServerlessDBInstance) {
       Engine 'aurora-postgresql'
       DBInstanceClass 'db.serverless'
       DBClusterIdentifier Ref(:DBCluster)
+      MonitoringInterval FnIf(:EnableEnhancedMonitoring, Ref(:EnhancedMonitoringInterval), Ref('AWS::NoValue'))
+      MonitoringRoleArn FnIf(:EnableEnhancedMonitoring, FnGetAtt(:EnhancedMonitoringRole, :Arn), Ref('AWS::NoValue'))
     }
 
   else
@@ -241,6 +251,8 @@ CloudFormation do
       PreferredMaintenanceWindow writer_maintenance_window unless writer_maintenance_window.nil?
       PubliclyAccessible 'false'
       DBInstanceClass Ref(:WriterInstanceType)
+      MonitoringInterval FnIf(:EnableEnhancedMonitoring, Ref(:EnhancedMonitoringInterval), Ref('AWS::NoValue'))
+      MonitoringRoleArn FnIf(:EnableEnhancedMonitoring, FnGetAtt(:EnhancedMonitoringRole, :Arn), Ref('AWS::NoValue'))
       Tags aurora_tags
     }
 
@@ -257,6 +269,8 @@ CloudFormation do
       PreferredMaintenanceWindow reader_maintenance_window unless reader_maintenance_window.nil?
       PubliclyAccessible 'false'
       DBInstanceClass Ref(:ReaderInstanceType)
+      MonitoringInterval FnIf(:EnableEnhancedMonitoring, Ref(:EnhancedMonitoringInterval), Ref('AWS::NoValue'))
+      MonitoringRoleArn FnIf(:EnableEnhancedMonitoring, FnGetAtt(:EnhancedMonitoringRole, :Arn), Ref('AWS::NoValue'))
       Tags aurora_tags
     }
 
