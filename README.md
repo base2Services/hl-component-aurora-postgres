@@ -13,6 +13,7 @@
 | SnapshotId | Snapshot ID to provision from | None | false | string
 | WriterInstanceType | Writer instance type *if engine is set to provisioned* | None | false | string
 | ReaderInstanceType | Reader instance type *if engine is set to provisioned* | None | false | string
+| EnhancedMonitoringInterval | Enhanced Monitoring granularity in seconds. Set to 0 to disable. | 0 | false | string | ['0','1','5','10','15','30','60']
 ## Outputs/Exports
 
 | Name | Value | Exported |
@@ -72,6 +73,18 @@ security_group:
 service_discovery:
   name: db
 ```
+
+## Enhanced Monitoring
+
+RDS Enhanced Monitoring provides OS-level metrics (CPU, memory, file system, disk I/O) at up to per-second granularity.
+
+Enable at deploy time by setting the `EnhancedMonitoringInterval` parameter:
+
+```bash
+EnhancedMonitoringInterval=60
+```
+
+When enabled, the component creates an IAM role with the `AmazonRDSEnhancedMonitoringRole` managed policy and configures monitoring on all DB instances (writer, reader, serverless). Set to `0` to disable (default).
 
 ## Cfhighlander Setup
 

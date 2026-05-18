@@ -1,0 +1,7 @@
+test_metadata:
+  type: config
+  name: enhanced_monitoring
+  description: enable enhanced monitoring on db instances
+
+family: aurora-postgresql14
+engine_version: 14.6
