@@ -135,6 +135,10 @@ describe 'compiled component aurora-postgres' do
           expect(resource["Properties"]["Tags"]).to eq([{"Key"=>"Name", "Value"=>{"Fn::Sub"=>"${EnvironmentName}-aurora-postgres"}}, {"Key"=>"Environment", "Value"=>{"Ref"=>"EnvironmentName"}}, {"Key"=>"EnvironmentType", "Value"=>{"Ref"=>"EnvironmentType"}}])
       end
       
+      it "to have property GlobalClusterIdentifier" do
+          expect(resource["Properties"]["GlobalClusterIdentifier"]).to eq({"Fn::If"=>["UseGlobalClusterIdentifier", {"Ref"=>"GlobalClusterIdentifier"}, {"Ref"=>"AWS::NoValue"}]})
+      end
+      
     end
     
     context "DBInstanceParameterGroup" do
@@ -154,6 +158,23 @@ describe 'compiled component aurora-postgres' do
       
       it "to have property Tags" do
           expect(resource["Properties"]["Tags"]).to eq([{"Key"=>"Name", "Value"=>{"Fn::Sub"=>"${EnvironmentName}-aurora-postgres"}}, {"Key"=>"Environment", "Value"=>{"Ref"=>"EnvironmentName"}}, {"Key"=>"EnvironmentType", "Value"=>{"Ref"=>"EnvironmentType"}}])
+      end
+      
+    end
+    
+    context "EnhancedMonitoringRole" do
+      let(:resource) { template["Resources"]["EnhancedMonitoringRole"] }
+
+      it "is of type AWS::IAM::Role" do
+          expect(resource["Type"]).to eq("AWS::IAM::Role")
+      end
+      
+      it "to have property AssumeRolePolicyDocument" do
+          expect(resource["Properties"]["AssumeRolePolicyDocument"]).to eq({"Version"=>"2012-10-17", "Statement"=>[{"Effect"=>"Allow", "Principal"=>{"Service"=>"monitoring.rds.amazonaws.com"}, "Action"=>"sts:AssumeRole"}]})
+      end
+      
+      it "to have property ManagedPolicyArns" do
+          expect(resource["Properties"]["ManagedPolicyArns"]).to eq(["arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"])
       end
       
     end
@@ -191,6 +212,14 @@ describe 'compiled component aurora-postgres' do
       
       it "to have property DBInstanceClass" do
           expect(resource["Properties"]["DBInstanceClass"]).to eq({"Ref"=>"WriterInstanceType"})
+      end
+      
+      it "to have property MonitoringInterval" do
+          expect(resource["Properties"]["MonitoringInterval"]).to eq({"Fn::If"=>["EnableEnhancedMonitoring", {"Ref"=>"EnhancedMonitoringInterval"}, {"Ref"=>"AWS::NoValue"}]})
+      end
+      
+      it "to have property MonitoringRoleArn" do
+          expect(resource["Properties"]["MonitoringRoleArn"]).to eq({"Fn::If"=>["EnableEnhancedMonitoring", {"Fn::GetAtt"=>["EnhancedMonitoringRole", "Arn"]}, {"Ref"=>"AWS::NoValue"}]})
       end
       
       it "to have property Tags" do
@@ -232,6 +261,14 @@ describe 'compiled component aurora-postgres' do
       
       it "to have property DBInstanceClass" do
           expect(resource["Properties"]["DBInstanceClass"]).to eq({"Ref"=>"ReaderInstanceType"})
+      end
+      
+      it "to have property MonitoringInterval" do
+          expect(resource["Properties"]["MonitoringInterval"]).to eq({"Fn::If"=>["EnableEnhancedMonitoring", {"Ref"=>"EnhancedMonitoringInterval"}, {"Ref"=>"AWS::NoValue"}]})
+      end
+      
+      it "to have property MonitoringRoleArn" do
+          expect(resource["Properties"]["MonitoringRoleArn"]).to eq({"Fn::If"=>["EnableEnhancedMonitoring", {"Fn::GetAtt"=>["EnhancedMonitoringRole", "Arn"]}, {"Ref"=>"AWS::NoValue"}]})
       end
       
       it "to have property Tags" do
