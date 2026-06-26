@@ -176,7 +176,7 @@ CloudFormation do
   kms = external_parameters.fetch(:kms, false)
   cluster_maintenance_window = external_parameters.fetch(:cluster_maintenance_window, nil)
   cloudwatch_log_exports = external_parameters.fetch(:cloudwatch_log_exports, [])
-  enable_deletion_protection = external_parameters.fetch(:enable_deletion_protection, nil)
+  deletion_protection = external_parameters.fetch(:deletion_protection, nil)
 
   # for serverless v2 the EngineMode property in the DBCluster is to be left unset
 
@@ -193,7 +193,7 @@ CloudFormation do
     VpcSecurityGroupIds [ Ref(:SecurityGroup) ]
     DatabaseName FnSub(database_name) unless database_name.nil?
     StorageEncrypted storage_encrypted unless storage_encrypted.nil?
-    DeletionProtection enable_deletion_protection unless enable_deletion_protection.nil?
+    DeletionProtection deletion_protection unless deletion_protection.nil?
     KmsKeyId Ref('KmsKeyId') if kms
     Port external_parameters[:cluster_port]
     Tags aurora_tags
