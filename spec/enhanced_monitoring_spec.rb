@@ -9,90 +9,328 @@ describe 'compiled component aurora-postgres' do
   end
   
   let(:template) { YAML.load_file("#{File.dirname(__FILE__)}/../out/tests/enhanced_monitoring/aurora-postgres.compiled.yaml") }
-
-  context "Condition" do
-    context "EnableEnhancedMonitoring" do
-      let(:condition) { template["Conditions"]["EnableEnhancedMonitoring"] }
-
-      it "is based on EnhancedMonitoringInterval parameter not being 0" do
-        expect(condition).to eq({"Fn::Not"=>[{"Fn::Equals"=>[{"Ref"=>"EnhancedMonitoringInterval"}, "0"]}]})
-      end
-    end
-  end
-
-  context "Parameter" do
-    context "EnhancedMonitoringInterval" do
-      let(:parameter) { template["Parameters"]["EnhancedMonitoringInterval"] }
-
-      it "exists" do
-        expect(parameter).not_to be_nil
-      end
-
-      it "has default value of 0" do
-        expect(parameter["Default"]).to eq("0")
-      end
-
-      it "has allowed values" do
-        expect(parameter["AllowedValues"]).to eq(["0", "1", "5", "10", "15", "30", "60"])
-      end
-    end
-  end
-
+  
   context "Resource" do
 
+    
+    context "SecurityGroup" do
+      let(:resource) { template["Resources"]["SecurityGroup"] }
+
+      it "is of type AWS::EC2::SecurityGroup" do
+          expect(resource["Type"]).to eq("AWS::EC2::SecurityGroup")
+      end
+      
+      it "to have property VpcId" do
+          expect(resource["Properties"]["VpcId"]).to eq({"Ref"=>"VPCId"})
+      end
+      
+      it "to have property GroupDescription" do
+          expect(resource["Properties"]["GroupDescription"]).to eq({"Fn::Sub"=>"Aurora postgres aurora-postgres access for the ${EnvironmentName} environment"})
+      end
+      
+      it "to have property SecurityGroupEgress" do
+          expect(resource["Properties"]["SecurityGroupEgress"]).to eq([{"CidrIp"=>"0.0.0.0/0", "Description"=>"outbound all for ports", "IpProtocol"=>-1}])
+      end
+      
+      it "to have property Tags" do
+          expect(resource["Properties"]["Tags"]).to eq([{"Key"=>"Name", "Value"=>{"Fn::Sub"=>"${EnvironmentName}-aurora-postgres"}}, {"Key"=>"Environment", "Value"=>{"Ref"=>"EnvironmentName"}}, {"Key"=>"EnvironmentType", "Value"=>{"Ref"=>"EnvironmentType"}}])
+      end
+      
+    end
+    
+    context "DBClusterSubnetGroup" do
+      let(:resource) { template["Resources"]["DBClusterSubnetGroup"] }
+
+      it "is of type AWS::RDS::DBSubnetGroup" do
+          expect(resource["Type"]).to eq("AWS::RDS::DBSubnetGroup")
+      end
+      
+      it "to have property SubnetIds" do
+          expect(resource["Properties"]["SubnetIds"]).to eq({"Ref"=>"SubnetIds"})
+      end
+      
+      it "to have property DBSubnetGroupDescription" do
+          expect(resource["Properties"]["DBSubnetGroupDescription"]).to eq({"Fn::Sub"=>"Aurora postgres aurora-postgres subnets for the ${EnvironmentName} environment"})
+      end
+      
+      it "to have property Tags" do
+          expect(resource["Properties"]["Tags"]).to eq([{"Key"=>"Name", "Value"=>{"Fn::Sub"=>"${EnvironmentName}-aurora-postgres"}}, {"Key"=>"Environment", "Value"=>{"Ref"=>"EnvironmentName"}}, {"Key"=>"EnvironmentType", "Value"=>{"Ref"=>"EnvironmentType"}}])
+      end
+      
+    end
+    
+    context "DBClusterParameterGroup" do
+      let(:resource) { template["Resources"]["DBClusterParameterGroup"] }
+
+      it "is of type AWS::RDS::DBClusterParameterGroup" do
+          expect(resource["Type"]).to eq("AWS::RDS::DBClusterParameterGroup")
+      end
+      
+      it "to have property Description" do
+          expect(resource["Properties"]["Description"]).to eq({"Fn::Sub"=>"Aurora postgres aurora-postgres cluster parameters for the ${EnvironmentName} environment"})
+      end
+      
+      it "to have property Family" do
+          expect(resource["Properties"]["Family"]).to eq("aurora-postgresql14")
+      end
+      
+      it "to have property Parameters" do
+          expect(resource["Properties"]["Parameters"]).to eq({"timezone"=>"UTC"})
+      end
+      
+      it "to have property Tags" do
+          expect(resource["Properties"]["Tags"]).to eq([{"Key"=>"Name", "Value"=>{"Fn::Sub"=>"${EnvironmentName}-aurora-postgres"}}, {"Key"=>"Environment", "Value"=>{"Ref"=>"EnvironmentName"}}, {"Key"=>"EnvironmentType", "Value"=>{"Ref"=>"EnvironmentType"}}])
+      end
+      
+    end
+    
+    context "DBCluster" do
+      let(:resource) { template["Resources"]["DBCluster"] }
+
+      it "is of type AWS::RDS::DBCluster" do
+          expect(resource["Type"]).to eq("AWS::RDS::DBCluster")
+      end
+      
+      it "to have property Engine" do
+          expect(resource["Properties"]["Engine"]).to eq("aurora-postgresql")
+      end
+      
+      it "to have property EngineVersion" do
+          expect(resource["Properties"]["EngineVersion"]).to eq(14.6)
+      end
+      
+      it "to have property DBClusterParameterGroupName" do
+          expect(resource["Properties"]["DBClusterParameterGroupName"]).to eq({"Ref"=>"DBClusterParameterGroup"})
+      end
+      
+      it "to have property SnapshotIdentifier" do
+          expect(resource["Properties"]["SnapshotIdentifier"]).to eq({"Fn::If"=>["UseSnapshotID", {"Ref"=>"SnapshotID"}, {"Ref"=>"AWS::NoValue"}]})
+      end
+      
+      it "to have property MasterUsername" do
+          expect(resource["Properties"]["MasterUsername"]).to eq({"Fn::If"=>["UseUsernameAndPassword", {"Fn::Join"=>["", ["{{resolve:ssm:", {"Fn::Sub"=>"/rds/AURORA_POSTGRES_MASTER_USERNAME"}, ":1}}"]]}, {"Ref"=>"AWS::NoValue"}]})
+      end
+      
+      it "to have property MasterUserPassword" do
+          expect(resource["Properties"]["MasterUserPassword"]).to eq({"Fn::If"=>["UseUsernameAndPassword", {"Fn::Join"=>["", ["{{resolve:ssm-secure:", {"Fn::Sub"=>"/rds/AURORA_POSTGRES_MASTER_PASSWORD"}, ":1}}"]]}, {"Ref"=>"AWS::NoValue"}]})
+      end
+      
+      it "to have property DBSubnetGroupName" do
+          expect(resource["Properties"]["DBSubnetGroupName"]).to eq({"Ref"=>"DBClusterSubnetGroup"})
+      end
+      
+      it "to have property VpcSecurityGroupIds" do
+          expect(resource["Properties"]["VpcSecurityGroupIds"]).to eq([{"Ref"=>"SecurityGroup"}])
+      end
+      
+      it "to have property Port" do
+          expect(resource["Properties"]["Port"]).to eq(5432)
+      end
+      
+      it "to have property Tags" do
+          expect(resource["Properties"]["Tags"]).to eq([{"Key"=>"Name", "Value"=>{"Fn::Sub"=>"${EnvironmentName}-aurora-postgres"}}, {"Key"=>"Environment", "Value"=>{"Ref"=>"EnvironmentName"}}, {"Key"=>"EnvironmentType", "Value"=>{"Ref"=>"EnvironmentType"}}])
+      end
+      
+      it "to have property GlobalClusterIdentifier" do
+          expect(resource["Properties"]["GlobalClusterIdentifier"]).to eq({"Fn::If"=>["UseGlobalClusterIdentifier", {"Ref"=>"GlobalClusterIdentifier"}, {"Ref"=>"AWS::NoValue"}]})
+      end
+      
+    end
+    
+    context "DBInstanceParameterGroup" do
+      let(:resource) { template["Resources"]["DBInstanceParameterGroup"] }
+
+      it "is of type AWS::RDS::DBParameterGroup" do
+          expect(resource["Type"]).to eq("AWS::RDS::DBParameterGroup")
+      end
+      
+      it "to have property Description" do
+          expect(resource["Properties"]["Description"]).to eq({"Fn::Sub"=>"Aurora postgres aurora-postgres instance parameters for the ${EnvironmentName} environment"})
+      end
+      
+      it "to have property Family" do
+          expect(resource["Properties"]["Family"]).to eq("aurora-postgresql14")
+      end
+      
+      it "to have property Tags" do
+          expect(resource["Properties"]["Tags"]).to eq([{"Key"=>"Name", "Value"=>{"Fn::Sub"=>"${EnvironmentName}-aurora-postgres"}}, {"Key"=>"Environment", "Value"=>{"Ref"=>"EnvironmentName"}}, {"Key"=>"EnvironmentType", "Value"=>{"Ref"=>"EnvironmentType"}}])
+      end
+      
+    end
+    
     context "EnhancedMonitoringRole" do
       let(:resource) { template["Resources"]["EnhancedMonitoringRole"] }
 
       it "is of type AWS::IAM::Role" do
-        expect(resource["Type"]).to eq("AWS::IAM::Role")
+          expect(resource["Type"]).to eq("AWS::IAM::Role")
       end
-
-      it "has condition EnableEnhancedMonitoring" do
-        expect(resource["Condition"]).to eq("EnableEnhancedMonitoring")
+      
+      it "to have property AssumeRolePolicyDocument" do
+          expect(resource["Properties"]["AssumeRolePolicyDocument"]).to eq({"Version"=>"2012-10-17", "Statement"=>[{"Effect"=>"Allow", "Principal"=>{"Service"=>"monitoring.rds.amazonaws.com"}, "Action"=>"sts:AssumeRole"}]})
       end
-
-      it "has monitoring.rds.amazonaws.com as the service principal" do
-        statement = resource["Properties"]["AssumeRolePolicyDocument"]["Statement"][0]
-        expect(statement["Principal"]["Service"]).to eq("monitoring.rds.amazonaws.com")
+      
+      it "to have property ManagedPolicyArns" do
+          expect(resource["Properties"]["ManagedPolicyArns"]).to eq(["arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"])
       end
-
-      it "has the AmazonRDSEnhancedMonitoringRole managed policy" do
-        expect(resource["Properties"]["ManagedPolicyArns"]).to include("arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole")
-      end
+      
     end
-
+    
     context "DBClusterInstanceWriter" do
       let(:resource) { template["Resources"]["DBClusterInstanceWriter"] }
 
-      it "has MonitoringInterval with Fn::If" do
-        expect(resource["Properties"]["MonitoringInterval"]).to eq({
-          "Fn::If" => ["EnableEnhancedMonitoring", {"Ref" => "EnhancedMonitoringInterval"}, {"Ref" => "AWS::NoValue"}]
-        })
+      it "is of type AWS::RDS::DBInstance" do
+          expect(resource["Type"]).to eq("AWS::RDS::DBInstance")
       end
-
-      it "has MonitoringRoleArn with Fn::If" do
-        expect(resource["Properties"]["MonitoringRoleArn"]).to eq({
-          "Fn::If" => ["EnableEnhancedMonitoring", {"Fn::GetAtt" => ["EnhancedMonitoringRole", "Arn"]}, {"Ref" => "AWS::NoValue"}]
-        })
+      
+      it "to have property DBSubnetGroupName" do
+          expect(resource["Properties"]["DBSubnetGroupName"]).to eq({"Ref"=>"DBClusterSubnetGroup"})
       end
+      
+      it "to have property DBParameterGroupName" do
+          expect(resource["Properties"]["DBParameterGroupName"]).to eq({"Ref"=>"DBInstanceParameterGroup"})
+      end
+      
+      it "to have property DBClusterIdentifier" do
+          expect(resource["Properties"]["DBClusterIdentifier"]).to eq({"Ref"=>"DBCluster"})
+      end
+      
+      it "to have property Engine" do
+          expect(resource["Properties"]["Engine"]).to eq("aurora-postgresql")
+      end
+      
+      it "to have property EngineVersion" do
+          expect(resource["Properties"]["EngineVersion"]).to eq(14.6)
+      end
+      
+      it "to have property PubliclyAccessible" do
+          expect(resource["Properties"]["PubliclyAccessible"]).to eq("false")
+      end
+      
+      it "to have property DBInstanceClass" do
+          expect(resource["Properties"]["DBInstanceClass"]).to eq({"Ref"=>"WriterInstanceType"})
+      end
+      
+      it "to have property MonitoringInterval" do
+          expect(resource["Properties"]["MonitoringInterval"]).to eq({"Fn::If"=>["EnableEnhancedMonitoring", {"Ref"=>"EnhancedMonitoringInterval"}, {"Ref"=>"AWS::NoValue"}]})
+      end
+      
+      it "to have property MonitoringRoleArn" do
+          expect(resource["Properties"]["MonitoringRoleArn"]).to eq({"Fn::If"=>["EnableEnhancedMonitoring", {"Fn::GetAtt"=>["EnhancedMonitoringRole", "Arn"]}, {"Ref"=>"AWS::NoValue"}]})
+      end
+      
+      it "to have property Tags" do
+          expect(resource["Properties"]["Tags"]).to eq([{"Key"=>"Name", "Value"=>{"Fn::Sub"=>"${EnvironmentName}-aurora-postgres"}}, {"Key"=>"Environment", "Value"=>{"Ref"=>"EnvironmentName"}}, {"Key"=>"EnvironmentType", "Value"=>{"Ref"=>"EnvironmentType"}}])
+      end
+      
     end
-
+    
     context "DBClusterInstanceReader" do
       let(:resource) { template["Resources"]["DBClusterInstanceReader"] }
 
-      it "has MonitoringInterval with Fn::If" do
-        expect(resource["Properties"]["MonitoringInterval"]).to eq({
-          "Fn::If" => ["EnableEnhancedMonitoring", {"Ref" => "EnhancedMonitoringInterval"}, {"Ref" => "AWS::NoValue"}]
-        })
+      it "is of type AWS::RDS::DBInstance" do
+          expect(resource["Type"]).to eq("AWS::RDS::DBInstance")
       end
-
-      it "has MonitoringRoleArn with Fn::If" do
-        expect(resource["Properties"]["MonitoringRoleArn"]).to eq({
-          "Fn::If" => ["EnableEnhancedMonitoring", {"Fn::GetAtt" => ["EnhancedMonitoringRole", "Arn"]}, {"Ref" => "AWS::NoValue"}]
-        })
+      
+      it "to have property DBSubnetGroupName" do
+          expect(resource["Properties"]["DBSubnetGroupName"]).to eq({"Ref"=>"DBClusterSubnetGroup"})
       end
+      
+      it "to have property DBParameterGroupName" do
+          expect(resource["Properties"]["DBParameterGroupName"]).to eq({"Ref"=>"DBInstanceParameterGroup"})
+      end
+      
+      it "to have property DBClusterIdentifier" do
+          expect(resource["Properties"]["DBClusterIdentifier"]).to eq({"Ref"=>"DBCluster"})
+      end
+      
+      it "to have property Engine" do
+          expect(resource["Properties"]["Engine"]).to eq("aurora-postgresql")
+      end
+      
+      it "to have property EngineVersion" do
+          expect(resource["Properties"]["EngineVersion"]).to eq(14.6)
+      end
+      
+      it "to have property PubliclyAccessible" do
+          expect(resource["Properties"]["PubliclyAccessible"]).to eq("false")
+      end
+      
+      it "to have property DBInstanceClass" do
+          expect(resource["Properties"]["DBInstanceClass"]).to eq({"Ref"=>"ReaderInstanceType"})
+      end
+      
+      it "to have property MonitoringInterval" do
+          expect(resource["Properties"]["MonitoringInterval"]).to eq({"Fn::If"=>["EnableEnhancedMonitoring", {"Ref"=>"EnhancedMonitoringInterval"}, {"Ref"=>"AWS::NoValue"}]})
+      end
+      
+      it "to have property MonitoringRoleArn" do
+          expect(resource["Properties"]["MonitoringRoleArn"]).to eq({"Fn::If"=>["EnableEnhancedMonitoring", {"Fn::GetAtt"=>["EnhancedMonitoringRole", "Arn"]}, {"Ref"=>"AWS::NoValue"}]})
+      end
+      
+      it "to have property Tags" do
+          expect(resource["Properties"]["Tags"]).to eq([{"Key"=>"Name", "Value"=>{"Fn::Sub"=>"${EnvironmentName}-aurora-postgres"}}, {"Key"=>"Environment", "Value"=>{"Ref"=>"EnvironmentName"}}, {"Key"=>"EnvironmentType", "Value"=>{"Ref"=>"EnvironmentType"}}])
+      end
+      
     end
+    
+    context "DBClusterReaderRecord" do
+      let(:resource) { template["Resources"]["DBClusterReaderRecord"] }
 
+      it "is of type AWS::Route53::RecordSet" do
+          expect(resource["Type"]).to eq("AWS::Route53::RecordSet")
+      end
+      
+      it "to have property HostedZoneName" do
+          expect(resource["Properties"]["HostedZoneName"]).to eq({"Fn::Sub"=>"${EnvironmentName}.${DnsDomain}."})
+      end
+      
+      it "to have property Name" do
+          expect(resource["Properties"]["Name"]).to eq({"Fn::Sub"=>"aurora2pg-read.${EnvironmentName}.${DnsDomain}."})
+      end
+      
+      it "to have property Type" do
+          expect(resource["Properties"]["Type"]).to eq("CNAME")
+      end
+      
+      it "to have property TTL" do
+          expect(resource["Properties"]["TTL"]).to eq("60")
+      end
+      
+      it "to have property ResourceRecords" do
+          expect(resource["Properties"]["ResourceRecords"]).to eq([{"Fn::GetAtt"=>["DBCluster", "ReadEndpoint.Address"]}])
+      end
+      
+    end
+    
+    context "DBHostRecord" do
+      let(:resource) { template["Resources"]["DBHostRecord"] }
+
+      it "is of type AWS::Route53::RecordSet" do
+          expect(resource["Type"]).to eq("AWS::Route53::RecordSet")
+      end
+      
+      it "to have property HostedZoneName" do
+          expect(resource["Properties"]["HostedZoneName"]).to eq({"Fn::Sub"=>"${EnvironmentName}.${DnsDomain}."})
+      end
+      
+      it "to have property Name" do
+          expect(resource["Properties"]["Name"]).to eq({"Fn::Sub"=>"aurora2pg.${EnvironmentName}.${DnsDomain}."})
+      end
+      
+      it "to have property Type" do
+          expect(resource["Properties"]["Type"]).to eq("CNAME")
+      end
+      
+      it "to have property TTL" do
+          expect(resource["Properties"]["TTL"]).to eq("60")
+      end
+      
+      it "to have property ResourceRecords" do
+          expect(resource["Properties"]["ResourceRecords"]).to eq([{"Fn::GetAtt"=>["DBCluster", "Endpoint.Address"]}])
+      end
+      
+    end
+    
   end
 
 end
